@@ -30,3 +30,12 @@
   <version>1.0.1.RELEASE</version>
 </dependency>
 ```
+[点击下载demo立即体验-42MB](http://ipfs-files.cn/activejdbc.starter.example.jar)
+
+启动时指定链接参数
+java -jar .\activejdbc.starter.example.jar --username root --password root --url "jdbc:mysql://{host}:{port}/{dbname}?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8&useSSL=false&allowMultiQueries=true"
+
+打开swagger-ui查看接口信息 （demo仅供演示接口 不适用于生产环境
+http://127.0.0.1:8080/starter/swagger-ui/index.html#/
+
+
