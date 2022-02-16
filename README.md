@@ -27,6 +27,6 @@
 <dependency>
   <groupId>cn.ipfs-files</groupId>
   <artifactId>activejdbc-spring-boot-starter</artifactId>
-  <version>1.0-RELEASE</version>
+  <version>1.0.1.RELEASE</version>
 </dependency>
 ```
