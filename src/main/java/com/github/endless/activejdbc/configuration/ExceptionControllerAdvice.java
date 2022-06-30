@@ -24,7 +24,6 @@ import lombok.extern.log4j.Log4j2;
 import org.javalite.activejdbc.InitException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -36,21 +35,7 @@ import java.util.Objects;
  * @author Endless
  */
 @Log4j2
-@ControllerAdvice
 public class ExceptionControllerAdvice {
-
-    /**
-     * 处理Throwable
-     */
-    @ExceptionHandler(Throwable.class)
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> ThrowableAdvice(Throwable error) {
-        error.printStackTrace();
-        Map<String, Object> map = new HashMap<>(1);
-        map.put("retMsg", "未知异常" + error.getLocalizedMessage());
-        return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
     @ExceptionHandler(InitException.class)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> bizExceptionAdvice(InitException error) {
