@@ -136,7 +136,7 @@ public class RestModelController {
 //    @ApiIgnore
     @RequestMapping(value = "/{model-name}/include", method = RequestMethod.GET)
     public Response<PageQuery> queryTree(@RequestParam Map<String, Object> input, boolean isEqual) {
-        return Response.respone(ContextHelper.includePageQuery(modelClass(), input, isEqual, ContextHelper.getChildrensClass(modelClass())));
+        return Response.respone(ContextHelper.includePageQuery(modelClass(), input, isEqual, ContextHelper.getChildrenClass(modelClass())));
     }
 
     @ApiOperation("高级筛选")

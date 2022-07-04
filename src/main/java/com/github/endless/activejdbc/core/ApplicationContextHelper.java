@@ -28,7 +28,7 @@ import org.javalite.activejdbc.Model;
 import org.javalite.activejdbc.ModelDelegate;
 import org.javalite.activejdbc.annotations.Table;
 import org.javalite.activejdbc.logging.LogFilter;
-import org.javalite.activejdbc.validation.Validator;
+import org.javalite.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -109,7 +109,7 @@ public class ApplicationContextHelper implements ApplicationContextAware, Applic
 	/**
 	 * 获取HttpServletResponse
 	 */
-	public static HttpServletResponse getRespone() {
+	public static HttpServletResponse getResponse() {
 		return attributes(ServletRequestAttributes::getResponse);
 	}
 
@@ -195,7 +195,7 @@ public class ApplicationContextHelper implements ApplicationContextAware, Applic
 		log.info("activejdbc initContextModels");
 		initContextModels();
 		log.info("activejdbc compiler");
-		MemoryCompiler.compiler();
+		MemoryCompiler.invokeActive();
 		Map<String, Object> callbackListeners = applicationContext.getBeansWithAnnotation(CallbackListeners.class);
 		for (Map.Entry<String, Object> callbackListener : callbackListeners.entrySet()) {
 			if (callbackListener.getValue() instanceof CallbackListener) {

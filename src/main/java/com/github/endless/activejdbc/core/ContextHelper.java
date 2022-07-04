@@ -36,6 +36,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.javalite.activejdbc.LazyList;
 import org.javalite.activejdbc.*;
+import org.javalite.activejdbc.associations.Association;
 import org.javalite.common.Convert;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -46,16 +47,12 @@ import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.sql.DataSource;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -315,18 +312,18 @@ public abstract class ContextHelper {
 	/**
 	 * 根据主键获取一个关联子表的数据, 并加载这个子表的关联子表数据数据（如果有）
 	 */
-	public static <T extends Model> LazyList<Model> getChildrens(T parent, Class<? extends Model> childrenClass) {
+	public static <T extends Model> LazyList<Model> getChildren(T parent, Class<? extends Model> childrenClass) {
 		String subQuery = idNameOf(modelClass(parent)) + Keys.SQL_WHERE_SINGLE_PLACEHOLDER;
 		log.info("{} | {} | {} | {}", childrenClass, modelClass(parent), subQuery, parent.getLongId());
-		return ModelDelegate.where(childrenClass, subQuery, parent.getLongId()).include(getChildrensClass(childrenClass));
+		return ModelDelegate.where(childrenClass, subQuery, parent.getLongId()).include(getChildrenClass(childrenClass));
 	}
 
 	/**
 	 * 获取model的关联子类
 	 */
-	public static <T extends Model> Class<T>[] getChildrensClass(Class<T> modelClass) {
+	public static <T extends Model> Class<T>[] getChildrenClass(Class<T> modelClass) {
 		if (modelClass.getAnnotation(ChildrensClass.class) == null) {
-			return new Class[]{};
+			return new Class<>[]{};
 		}
 		return (Class<T>[]) modelClass.getAnnotation(ChildrensClass.class).value();
 	}
@@ -334,8 +331,8 @@ public abstract class ContextHelper {
 	/**
 	 * 获取model的关联子类
 	 */
-	public static <T extends Model> Class<T>[] getChildrensClass(T model) {
-		return (Class<T>[]) getChildrensClass(modelClass(model));
+	public static <T extends Model> Class<T>[] getChildrenClass(T model) {
+		return (Class<T>[]) getChildrenClass(modelClass(model));
 	}
 
 	/**
@@ -361,15 +358,15 @@ public abstract class ContextHelper {
 			throw new BizException(Keys.LOG_MSG_OBJECT_NOT_EXISTS);
 		}
 		LazyList<T> model = ModelDelegate.where(modelClass, idNameOf(modelClass) + Keys.SQL_WHERE_SINGLE_PLACEHOLDER, id);
-		return (T) model.include(getChildrensClass(modelClass)).limit(1).get(0);
+		return (T) model.include(getChildrenClass(modelClass)).limit(1).get(0);
 	}
 
 	/**
 	 * 树形加载子表数据 最多共3层 <br>
 	 */
 	public static <T extends Model> T includeAll(T model) {
-		Stream.of(getChildrensClass(model)).filter(child -> ModelDelegate.belongsTo(child, modelClass(model))).forEach(childrenClass -> {
-			LazyList<Model> all = getChildrens(model, childrenClass);
+		Stream.of(getChildrenClass(model)).filter(child -> ModelDelegate.belongsTo(child, modelClass(model))).forEach(childrenClass -> {
+			LazyList<Model> all = getChildren(model, childrenClass);
 			all.forEach(ContextHelper::includeAll);
 			((BaseModel) model).include(childrenClass, all);
 		});
@@ -380,8 +377,8 @@ public abstract class ContextHelper {
 	 * 树形加载子表数据 最多共3层 <br>
 	 */
 	public static <T extends Model> T includeAllChildrens(T model) {
-		Stream.of(getChildrensClass(model)).filter(child -> ModelDelegate.belongsTo(child, modelClass(model))).forEach(childrenClass -> {
-			((BaseModel) model).include(childrenClass, getChildrens(model, childrenClass));
+		Stream.of(getChildrenClass(model)).filter(child -> ModelDelegate.belongsTo(child, modelClass(model))).forEach(childrenClass -> {
+			((BaseModel) model).include(childrenClass, getChildren(model, childrenClass));
 		});
 		return model;
 	}
@@ -601,7 +598,7 @@ public abstract class ContextHelper {
 	 * 集合转where条件 example : [a,b,c] >>> "?,?,?"
 	 */
 	public static <E> String toHolderString(List<E> collection) {
-		return Lists.transform(collection, e -> "?").stream().collect(Collectors.joining(","));
+		return String.join(",", Lists.transform(collection, e -> "?"));
 	}
 
 	/**
@@ -675,14 +672,14 @@ public abstract class ContextHelper {
 	}
 
 	public static Map toKeyValue(Map input, UnaryOperator<String> apply) {
-		return entryStream(input).collect(HashMap::new, (n, e) -> n.put(Optional.ofNullable(e.getKey()).map(apply::apply).orElse(null), e.getValue()), HashMap::putAll);
+		return entryStream(input).collect(HashMap::new, (n, e) -> n.put(Optional.ofNullable(e.getKey()).map(apply).orElse(null), e.getValue()), HashMap::putAll);
 	}
 
 	/**
 	 * model转VO
 	 */
 	public static <T extends Model> BaseModelVO toVO(T model) {
-		return Optional.ofNullable(toVO(transferClass(model), model.toMap())).orElse(null);
+		return toVO(transferClass(model), model.toMap());
 	}
 
 	/**
@@ -847,7 +844,7 @@ public abstract class ContextHelper {
 	 * 传入一个匿名函数 并返回一个 对传入函数包装了事务管理的匿名函数
 	 */
 	public static <T> Function<T> transaction(Function<T> apply, ModelType... ModelType) {
-		Function<T> transaction = () -> {
+		return () -> {
 			ContextHelper.initConnections(ModelType);
 			T result;
 			try {
@@ -863,7 +860,6 @@ public abstract class ContextHelper {
 			}
 			return result;
 		};
-		return transaction;
 	}
 
 	/**
@@ -878,8 +874,10 @@ public abstract class ContextHelper {
 	 */
 	public static <T> CompletableFuture<T> asyncApply(Function<T> apply) {
 		ThreadPoolTaskExecutor contextPool = ApplicationContextHelper.getBeanByType(ThreadPoolTaskExecutor.class);
-		Executor executor = contextPool == null ? MemoryCompiler.taskExecutor() : contextPool;
-		return CompletableFuture.supplyAsync(() -> apply.apply(), executor);
+		if (contextPool == null  ){
+			return CompletableFuture.supplyAsync(apply::apply);
+		}
+		return CompletableFuture.supplyAsync(apply::apply, contextPool);
 	}
 
 	/**
@@ -934,7 +932,7 @@ public abstract class ContextHelper {
 
 	public static void refresh() {
 		ContextHelper.getField(Registry.instance(), "initedDbs", Set.class).clear();
-		MemoryCompiler.compiler();
+		MemoryCompiler.invokeActive();
 	}
 
 	@SneakyThrows
@@ -959,20 +957,6 @@ public abstract class ContextHelper {
 			return asyncApply(apply).whenComplete((r, e) -> result.add(r));
 		}).toArray(CompletableFuture[]::new)).join();
 		return result;
-	}
-
-	public static void reloadMyClass() {
-		Collection<Class<Model>> modelClasss = ApplicationContextHelper.getContextModels().values();
-		for (Class<?> modelClass : modelClasss) {
-			URL[] urls = {modelClass.getProtectionDomain().getCodeSource().getLocation()};
-			ClassLoader delegateParent = modelClass.getClassLoader().getParent();
-			try (URLClassLoader cl = new URLClassLoader(urls, delegateParent)) {
-				Class<?> reloaded = cl.loadClass(modelClass.getName());
-				log.info("reloaded my class: Class@%x%n", reloaded.hashCode());
-			} catch (ClassNotFoundException | IOException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 }

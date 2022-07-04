@@ -74,7 +74,7 @@ public abstract class AbstractManager<T extends Model, V extends BaseModelVO> {
 
     public Response<PageQuery> queryTree(@RequestParam Map<String, Object> input, boolean isEqual) {
         return Response.respone(ContextHelper.includePageQuery(modelClass(), input, isEqual,
-                ContextHelper.getChildrensClass(modelClass())));
+                ContextHelper.getChildrenClass(modelClass())));
     }
 
     public Response<V> findById(@PathVariable(name = "id") Long id) {

@@ -21,8 +21,6 @@ package com.github.endless.activejdbc.core;
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.model.BaseModel;
 import com.github.endless.activejdbc.query.Utils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import javassist.*;
 import javassist.bytecode.AnnotationsAttribute;
@@ -36,21 +34,28 @@ import org.javalite.activejdbc.annotations.DbName;
 import org.javalite.activejdbc.annotations.IdName;
 import org.javalite.activejdbc.annotations.Table;
 import org.javalite.common.Convert;
+import org.javalite.common.JsonHelper;
 import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.ReflectionUtils;
 
 import javax.sql.DataSource;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.MessageFormat;
-import java.util.*;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
+
+import static com.github.endless.activejdbc.query.Utils.convertList;
 
 /***
  * @author Endless
@@ -60,61 +65,122 @@ import java.util.stream.Collectors;
 @Log4j2
 public class MemoryCompiler {
 
-	private static final ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
 	private static final String TABLE_CAT = "TABLE_CAT", TABLE_NAME = "TABLE_NAME", TABLE_SCHEM = "TABLE_SCHEM", COLUMN_NAME = "COLUMN_NAME";
 
-	static {
-		taskExecutor.setCorePoolSize(10);
-		taskExecutor.setMaxPoolSize(10);
-		taskExecutor.setQueueCapacity(200);
-		taskExecutor.setKeepAliveSeconds(10);
-		taskExecutor.setThreadNamePrefix("taskExecutor-");
-		taskExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-		taskExecutor.setWaitForTasksToCompleteOnShutdown(true);
-		taskExecutor.setAwaitTerminationSeconds(60);
-		taskExecutor.initialize();
-	}
 
 	public static void main(String[] args) {
-		compiler();
+		invokeActive();
 	}
 
-	public static ThreadPoolTaskExecutor taskExecutor() {
-		return taskExecutor;
+
+	private static Map<String, ColumnMetadata> fetchMetaParams(DatabaseMetaData databaseMetaData, String dbType, String table) {
+		Method fetchMetaParams = ReflectionUtils.findMethod(Registry.class, "fetchMetaParams", DatabaseMetaData.class, String.class, String.class);
+		ReflectionUtils.makeAccessible(fetchMetaParams);
+		return (Map<String, ColumnMetadata>) ReflectionUtils.invokeMethod(fetchMetaParams, Registry.instance(), databaseMetaData, dbType, table);
 	}
 
-	public static <T extends Model> void invoke(List<Class<? extends Model>> modelClass) {
-		Configuration configuration = Registry.instance().getConfiguration();
-		Map<String, List<String>> modelsMap = ContextHelper.getField(Registry.instance().getConfiguration(), "modelsMap", Map.class);
-		modelClass.stream().collect(Collectors.groupingBy(e -> e.getAnnotation(DbName.class).value())).forEach((k, v) -> {
-			modelsMap.put(k, v.stream().map(c -> c.getName()).collect(Collectors.toList()));
-		});
-		ContextHelper.setField(configuration, configuration.getClass(), "modelsMap", modelsMap);
-		Map<String, List<Class<? extends Model>>> modelClasses = new HashMap();
-		modelsMap.forEach((k, v) -> modelClasses.put(k, modelClass.stream().filter(e -> k.equals(e.getAnnotation(DbName.class).value())).collect(Collectors.toList())));
-		modelClasses.forEach((k, v) -> v.forEach(m -> log.info("invoke {} : {}", k, m)));
-		ContextHelper.setField(null, ModelFinder.class, "modelClasses", modelClasses);
+	private static void registerColumnMetadata(String table, Map<String, ColumnMetadata> metaParams) {
+		Method registerColumnMetadata = ReflectionUtils.findMethod(Registry.class, "registerColumnMetadata", String.class, Map.class);
+		ReflectionUtils.makeAccessible(registerColumnMetadata);
+		ReflectionUtils.invokeMethod(registerColumnMetadata, Registry.instance(), table, metaParams);
 	}
 
-	public static void compiler() {
+	private static void registerModels(String dbName, Set<Class<? extends Model>> modelClasses, String dbType) {
+		Method registerModels = ReflectionUtils.findMethod(Registry.class, "registerModels", String.class, Set.class, String.class);
+		ReflectionUtils.makeAccessible(registerModels);
+		ReflectionUtils.invokeMethod(registerModels, Registry.instance(), dbName, modelClasses, dbType);
+	}
+
+	public static void invokeActive() {
+		Set<MetaModel> metaModels = getModelsForDb();
+		Collector<MetaModel, ?, Set<String>> mapping = Collectors.mapping(e -> e.getModelClass().getSimpleName(), Collectors.toSet());
+		Map<String, Set<String>> modelMap = metaModels.stream().collect(Collectors.groupingBy(MetaModel::getDbName, mapping));
+		ContextHelper.setField(null, ModelFinder.class, "modelMap", modelMap);
+	}
+
+	static Set<MetaModel> getModelsForDb() {
+		Set<MetaModel> metaModels = new HashSet<>();
 		ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
 		Map<String, Class<Model>> contextModels = ApplicationContextHelper.getContextModels();
-		getPrimaryKeys().parallelStream().map(e -> {
-			return assistCompiler(fullClassName(e.get(TABLE_NAME)), e, classLoader);
-		}).filter(clazz -> clazz != null).collect(Collectors.toList()).forEach(clazz -> {
-			if (!contextModels.containsKey(clazz.getAnnotation(Table.class).value())) {
-				contextModels.put(clazz.getAnnotation(Table.class).value(), (Class<Model>) clazz);
-				log.info("init model class {} {}", clazz.getAnnotation(DbName.class).value(), clazz);
+		Map<String, DataSource> dataSources = ApplicationContextHelper.getBeansOfType(DataSource.class);
+		Set<Map<String, String>> primaryKeys = Sets.newHashSet();
+		for (Map.Entry<String, DataSource> dataSourceEntry : dataSources.entrySet()) {
+			try {
+				log.info("lookup dataSource :{} ", dataSourceEntry);
+				Set<MetaTable> metaTables = getTablesForDb(dataSourceEntry);
+				Connection connection = DataSourceUtils.doGetConnection(dataSourceEntry.getValue());
+				DatabaseMetaData databaseMetaData = connection.getMetaData();
+				String dbType = connection.getMetaData().getDatabaseProductName();
+				String dbName = connection.getCatalog();
+				ApplicationContextHelper.dataSourceKeys.add(connection.getCatalog());
+				Set<String> initedDbs = ContextHelper.getField(Registry.instance(), "initedDbs", Set.class);
+				initedDbs.add(dbName);
+				for (MetaTable metaTable : metaTables) {
+					Class<? extends Model> modelClass = getDynamicModelClass(metaTable, classLoader);
+					if (modelClass != null && !modelClass.equals(Model.class) && Model.class.isAssignableFrom(modelClass)) {
+						if (!contextModels.containsKey(modelClass.getAnnotation(Table.class).value())) {
+							contextModels.put(modelClass.getAnnotation(Table.class).value(), (Class<Model>) modelClass);
+							MetaModel metaModel = metaModelOf(metaTable.dbName, modelClass, dbType);
+							metaModels.add(metaModel);
+							registerModels(metaTable.dbName, Set.of(modelClass), dbType);
+							registerColumnMetadata(metaTable.tableName, fetchMetaParams(databaseMetaData, dbType, metaTable.tableName));
+							log.info("initialized table {} > model {}", metaTable.tableName, modelClass);
+						}
+					} else {
+						throw new InitException("invalid class in the models list: " + modelClass.getName());
+					}
+				}
+				DataSourceUtils.releaseConnection(connection, dataSourceEntry.getValue());
+			} catch (Exception e) {
+				throw new InitException(e);
 			}
-		});
-		invoke(new ArrayList<>(contextModels.values()));
+		}
+
+		return metaModels;
 	}
 
-	public static Class<? extends Model> assistCompiler(String className, Map<String, String> javaScript, ClassLoader springClassLoader) {
+	public static Set<MetaTable> getTablesForDb(Map.Entry<String, DataSource> dataSourceEntry) throws SQLException {
+		Connection connection = DataSourceUtils.doGetConnection(dataSourceEntry.getValue());
+		if (connection == null) {
+			throw new DBException("Failed to retrieve metadata from DB, connection: '" + dataSourceEntry.getKey() + "' is not available");
+		}
+		DatabaseMetaData databaseMetaData = connection.getMetaData();
+		String schema = getConnectionSchema(databaseMetaData);
+		String catalog = getConnectionCatalog(databaseMetaData);
+		ResultSet result = databaseMetaData.getTables(catalog, schema, null, org.javalite.common.Collections.arr("TABLE"));
+		List<Map<String, Object>> listMap = convertList(result);
+		Set<MetaTable> metaTables = new HashSet<>();
+		for (Map<String, Object> map : listMap) {
+			String tableName = Convert.toString(map.get("TABLE_NAME"));
+			List<Map<String, Object>> primaryKeys = convertList(databaseMetaData.getPrimaryKeys(catalog, schema, tableName));
+			primaryKeys.stream().findFirst().ifPresent(primaryKey -> {
+				MetaTable metaTable = new MetaTable();
+				try {
+					metaTable.setDbName(connection.getCatalog());
+				} catch (SQLException e) {
+					throw new RuntimeException(e);
+				}
+				metaTable.setTableName(tableName);
+				metaTable.setIdName(Convert.toString(primaryKey.get("COLUMN_NAME")));
+				metaTables.add(metaTable);
+				log.info("find table: {}", JsonHelper.toJsonString(metaTable));
+			});
+		}
+		DataSourceUtils.releaseConnection(connection, dataSourceEntry.getValue());
+		return metaTables;
+	}
+
+	static <T extends Model> MetaModel metaModelOf(String dbName, Class<? extends Model> modelClass, String dbType) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+		Constructor<?> constructor = MetaModel.class.getDeclaredConstructors()[0];
+		ReflectionUtils.makeAccessible(constructor);
+		return (MetaModel) constructor.newInstance(dbName, modelClass, dbType);
+	}
+
+	public static Class<? extends Model> getDynamicModelClass(MetaTable metaTable, ClassLoader classLoader) {
 		try {
-			log.info("{} compiler >>>{}", className, javaScript);
+			String className = fullClassName(metaTable.tableName);
 			ClassPool assist = new ClassPool(true);
-			assist.appendClassPath(new LoaderClassPath(springClassLoader));
+			assist.appendClassPath(new LoaderClassPath(classLoader));
 			CtClass superClass = assist.getCtClass(BaseModel.class.getName());
 			CtClass ctClass = assist.makeClass(className);
 			ctClass.setSuperclass(superClass);
@@ -126,125 +192,72 @@ public class MemoryCompiler {
 			newGetClass.setBody("{return " + className + ".class;}");
 			ctClass.addMethod(newGetClass);
 			ctClass.defrost();
-			ByteArrayClassLoader loader = AccessController.doPrivileged((PrivilegedAction<ByteArrayClassLoader>) () -> new ByteArrayClassLoader(ClassUtils.getDefaultClassLoader()));
-			addAnnotation(ctClass, javaScript);
-//            ctClass.writeFile();
-			return ctClass.toClass(loader, ctClass.getClass().getProtectionDomain());
+			ByteArrayClassLoader loader = new ByteArrayClassLoader(ClassUtils.getDefaultClassLoader());
+			addAnnotation(ctClass, metaTable);
+			ctClass.writeFile();
+			return (Class<? extends Model>) ctClass.toClass(loader, ctClass.getClass().getProtectionDomain());
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}
 	}
 
-	private static CtClass addAnnotation(CtClass ctClass, Map<String, String> javaScript) throws Exception {
-		String idName = javaScript.get(COLUMN_NAME), tableName = javaScript.get(TABLE_NAME), tableSchema = javaScript.get(TABLE_CAT);
+	private static CtClass addAnnotation(CtClass ctClass, MetaTable metaTable) throws Exception {
+		String idName = metaTable.getIdName();
+		String tableName = metaTable.getTableName();
+		String dbName = metaTable.getDbName();
 		ClassFile classFile = ctClass.getClassFile();
 		ConstPool constpool = classFile.getConstPool();
 		AnnotationsAttribute annotationsAttribute = new AnnotationsAttribute(constpool, AnnotationsAttribute.visibleTag);
+		/**
+		 * IdName注解
+		 */
 		Annotation annotationIdName = new Annotation(IdName.class.getName(), constpool);
 		annotationIdName.addMemberValue("value", new StringMemberValue(idName.toLowerCase(), constpool));
+		annotationsAttribute.addAnnotation(annotationIdName);
+		/**
+		 * Table注解
+		 */
 		Annotation annotationTable = new Annotation(Table.class.getName(), constpool);
 		annotationTable.addMemberValue("value", new StringMemberValue(tableName.toLowerCase(), constpool));
-		Annotation annotationDbName = new Annotation(DbName.class.getName(), constpool);
-//        Annotation annotationCached = new Annotation(Cached.class.getName(), constpool);
-		annotationsAttribute.addAnnotation(annotationIdName);
 		annotationsAttribute.addAnnotation(annotationTable);
+		/**
+		 * DbName注解
+		 */
+		Annotation annotationDbName = new Annotation(DbName.class.getName(), constpool);
+		annotationDbName.addMemberValue("value", new StringMemberValue(dbName, constpool));
+		annotationsAttribute.addAnnotation(annotationDbName);
+//        Annotation annotationCached = new Annotation(Cached.class.getName(), constpool);
 //        annotationsAttribute.addAnnotation(annotationCached);
-		if (tableSchema != null) {
-			annotationDbName.addMemberValue("value", new StringMemberValue(tableSchema, constpool));
-			annotationsAttribute.addAnnotation(annotationDbName);
-		}
 		ctClass.getClassFile().addAttribute(annotationsAttribute);
 		return ctClass;
-	}
-
-	/**
-	 * 类名
-	 */
-	private static String modelClassName(String tableName) {
-		return Utils.toUpperFirstCode(Utils.lineToHump(tableName)) + "PO";
 	}
 
 	/**
 	 * 包名+类名
 	 */
 	private static String fullClassName(String tableName) {
-		return MessageFormat.format(Keys.MSG_CLASS_NAME, modelClassName(tableName));
+		return MessageFormat.format(Keys.MSG_CLASS_NAME, Utils.toUpperFirstCode(Utils.lineToHump(tableName)));
 	}
 
-	public static Set<Map<String, String>> getPrimaryKeys() {
-		Map<String, DataSource> dataSources = ApplicationContextHelper.getBeansOfType(DataSource.class);
-		Set<Map<String, String>> primaryKeys = Sets.newHashSet();
-		for (Map.Entry<String, DataSource> dataSourceEntry : dataSources.entrySet()) {
-			try {
-				log.info("lookup dataSource :{} ",dataSourceEntry);
-				Connection connection = DataSourceUtils.doGetConnection(dataSourceEntry.getValue());
-				ApplicationContextHelper.dataSourceKeys.add(connection.getCatalog());
-				getTables(connection.getCatalog()).parallelStream()
-						.map(MemoryCompiler::getAllPrimaryKeys)
-						.reduce(Sets.newHashSet(), Sets::union).forEach(table -> {
-							primaryKeys.add(table);
-						});
-				DataSourceUtils.releaseConnection(connection,dataSourceEntry.getValue());
-			} catch (SQLException e) {
-				throw new RuntimeException(e);
-			}
-		}
-		log.info("dataSourceKeys {} ", ApplicationContextHelper.dataSourceKeys);
-		primaryKeys.forEach(e -> log.info("table primaryKey  {} ", e));
-		return primaryKeys;
-	}
-
-	/**
-	 * 获得一个表的主键信息
-	 */
-	public static Set<Map<String, String>> getAllPrimaryKeys(Map<String, String> tableInfo) {
+	private static String getConnectionSchema(DatabaseMetaData databaseMetaData) throws SQLException {
 		try {
-			if (tableInfo == null) {
-				return Collections.emptySet();
-			}
-			String schemaName = tableInfo.get(TABLE_CAT);
-			schemaName = schemaName == null ? tableInfo.get(TABLE_SCHEM) : schemaName;
-			String tableName = tableInfo.get(TABLE_NAME);
-			DB db = ContextHelper.openConnection(schemaName);
-			DatabaseMetaData dbMetaData = db.connection().getMetaData();
-			List<Map<String, Object>> primaryKeys = Utils.convertList(dbMetaData.getPrimaryKeys(null, null, tableName));
-			primaryKeys = primaryKeys.stream().filter(Objects::nonNull).collect(Collectors.toList());
-			HashSet<Map<String, String>> hashSet = Sets.newHashSet(Lists.transform(primaryKeys, e -> Maps.transformValues(e, v -> Convert.toString(v))));
-			hashSet.forEach(e -> log.info("transform table {} ", e));
-			return hashSet;
-		} catch (SQLException throwables) {
-			throwables.printStackTrace();
+			return databaseMetaData.getConnection().getSchema();
+		} catch (SQLException e) {
+			throw e;
+		} catch (Exception ignore) {
 		}
-		return Collections.emptySet();
+		return null;
 	}
 
-	private static List<Map<String, String>> getTables(String schemaName) {
+	private static String getConnectionCatalog(DatabaseMetaData databaseMetaData) throws SQLException {
 		try {
-			log.info("getTables {} ", schemaName);
-			DB db = ContextHelper.openConnection(schemaName);
-			DatabaseMetaData dbMetaData = db.connection().getMetaData();
-			ResultSet tableSet = dbMetaData.getTables(schemaName, null, null, new String[]{"TABLE"});
-			List<Map<String, Object>> tables = Utils.convertList(tableSet, TABLE_SCHEM, TABLE_CAT, TABLE_NAME);
-			tables.forEach(e -> log.info("find table {} ", e));
-			List<Map<String, String>> transform = Lists.transform(tables, e -> Maps.transformValues(e, v -> {
-				return v == null ? schemaName : Convert.toString(v);
-			}));
-			transform.forEach(e -> log.info("transform table {} ", e));
-			return transform;
-		} catch (SQLException throwables) {
-			throwables.printStackTrace();
+			return databaseMetaData.getConnection().getCatalog();
+		} catch (SQLException e) {
+			throw e;
+		} catch (Exception ignore) {
 		}
-		log.info("getTables emptyList");
-		return Collections.emptyList();
+		return null;
 	}
 
-	public static List<String> getAllSchemas(Map.Entry<String, DB> db) throws SQLException {
-		DatabaseMetaData dbMetaData = db.getValue().connection().getMetaData();
-		List<Map<String, Object>> catalogs = Utils.convertList(dbMetaData.getCatalogs(), TABLE_CAT);
-		if (!catalogs.isEmpty()) {
-			return catalogs.stream().map(e -> Convert.toString(e.get(TABLE_CAT))).collect(Collectors.toList());
-		}
-		return Utils.convertList(dbMetaData.getSchemas()).stream().map(e -> Convert.toString(e.get(TABLE_SCHEM))).collect(Collectors.toList());
-	}
 }
