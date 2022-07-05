@@ -50,7 +50,7 @@ public class QueryFilter<V> {
     @ApiModelProperty(name = "sorter", notes = "字段排序")
     private List<FieldSort> sorter = new ArrayList<FieldSort>();
 
-    @ApiModelProperty(name = "columns", notes = "返回字段", example = "name")
+    @ApiModelProperty(name = "columns", notes = "返回字段", example = "['name']")
     private List<String> columns = new ArrayList<String>();
 
     @ApiModelProperty(name = "query", notes = "查询条件组,各条件组之间以and链接<br> 同一组条件之间以or链接")

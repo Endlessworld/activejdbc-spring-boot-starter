@@ -19,7 +19,6 @@
 package com.github.endless.activejdbc.controller;
 
 import com.github.endless.activejdbc.annotation.EnableModel;
-import com.github.endless.activejdbc.core.ApplicationContextHelper;
 import com.github.endless.activejdbc.core.ContextHelper;
 import com.github.endless.activejdbc.domains.BaseModelVO;
 import com.github.endless.activejdbc.query.PageQuery;
@@ -55,7 +54,7 @@ public class RestModelController {
     }
 
     public Class<Model> modelClass() {
-        return ApplicationContextHelper.modelClass(tableName.get());
+        return ContextHelper.modelClass(tableName.get());
     }
 
     /**

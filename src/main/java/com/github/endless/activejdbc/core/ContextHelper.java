@@ -28,9 +28,9 @@ import com.github.endless.activejdbc.constant.ModelType;
 import com.github.endless.activejdbc.core.Paginator.PaginatorBuilder;
 import com.github.endless.activejdbc.domains.BaseModelVO;
 import com.github.endless.activejdbc.model.BaseModel;
+import com.github.endless.activejdbc.query.Helper;
 import com.github.endless.activejdbc.query.PageQuery;
 import com.github.endless.activejdbc.query.PaginatorQuery;
-import com.github.endless.activejdbc.query.Utils;
 import com.google.common.collect.Lists;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -130,11 +130,7 @@ public abstract class ContextHelper {
 			return 0;
 		}
 		DB db = ContextHelper.openConnection(modelType.getName());
-		Integer rowsSize = Lists.partition(Lists.newArrayList(rows), 500)
-				.stream().map(list -> list.stream().map(e -> e.toInsert()
-								.replace("INSERT INTO", "REPLACE INTO"))
-						.collect(Collectors.joining(";")))
-				.filter(e -> e.length() > 0).map(db::exec).mapToInt(e -> e).sum();
+		Integer rowsSize = Lists.partition(Lists.newArrayList(rows), 500).stream().map(list -> list.stream().map(e -> e.toInsert().replace("INSERT INTO", "REPLACE INTO")).collect(Collectors.joining(";"))).filter(e -> e.length() > 0).map(db::exec).mapToInt(e -> e).sum();
 		log.info("replace into total {} ", rowsSize);
 		return rowsSize;
 	}
@@ -150,7 +146,7 @@ public abstract class ContextHelper {
 	 * 根据VO创建model但不保存到数据库
 	 */
 	public static <T extends Model, V extends BaseModelVO> T create(Class<T> modelClass, V input) {
-		return create(modelClass, Utils.trans2Map(metaModelOf(modelClass), input));
+		return create(modelClass, Helper.trans2Map(metaModelOf(modelClass), input));
 	}
 
 	/**
@@ -164,7 +160,7 @@ public abstract class ContextHelper {
 	 * 根据VO创建model并保存到数据库
 	 */
 	public static <T extends Model, V extends BaseModelVO> T createIt(Class<T> modelClass, V input) {
-		return createIt(modelClass, Utils.trans2Map(metaModelOf(modelClass), input));
+		return createIt(modelClass, Helper.trans2Map(metaModelOf(modelClass), input));
 	}
 
 	/**
@@ -178,21 +174,21 @@ public abstract class ContextHelper {
 	 * 如果数据库存在匹配的数据，则返回第一条， 不存在则创建并返回
 	 */
 	public static <T extends Model> T findOrInit(Class<T> modelClass, Map input) {
-		return ModelDelegate.findOrInit(modelClass, Utils.trans2Array(input));
+		return ModelDelegate.findOrInit(modelClass, Helper.trans2Array(input));
 	}
 
 	/**
 	 * 如果数据库存在匹配的数据，则返回第一条， 不存在则创建并返回
 	 */
 	public static <T extends Model, V extends BaseModelVO> T findOrInit(Class<T> modelClass, V input) {
-		return findOrInit(modelClass, Utils.trans2Map(metaModelOf(modelClass), input));
+		return findOrInit(modelClass, Helper.trans2Map(metaModelOf(modelClass), input));
 	}
 
 	/**
 	 * 根据VO创建或更新
 	 */
 	public static <T extends Model, V extends BaseModelVO> T createItOrUpdate(Class<T> modelClass, V input) {
-		return createItOrUpdate(modelClass, Utils.trans2Map(metaModelOf(modelClass), input));
+		return createItOrUpdate(modelClass, Helper.trans2Map(metaModelOf(modelClass), input));
 	}
 
 	/**
@@ -293,21 +289,16 @@ public abstract class ContextHelper {
 	 * VO转model
 	 */
 	public static <T extends Model> T fromVO(Class<T> modelClass, BaseModelVO input) {
-		return ModelDelegate.create(modelClass).fromMap(Utils.trans2Map(ModelDelegate.metaModelOf(modelClass), input));
+		return ModelDelegate.create(modelClass).fromMap(Helper.trans2Map(ModelDelegate.metaModelOf(modelClass), input));
 	}
 
 	/**
 	 * 根据model获取一个或多个表的字段名（大写）
 	 */
 	public static Set getAttributeNames(Class<? extends Model>... modelClass) {
-		return Stream.of(modelClass).map(clazz -> ModelDelegate.metaModelOf(clazz).getAttributeNamesSkipGenerated()).reduce(new HashSet<>(), ContextHelper::merge);
+		return Stream.of(modelClass).map(ModelDelegate::metaModelOf).map(MetaModel::getAttributeNamesSkipGenerated).reduce(new HashSet<>(), Helper::merge);
 	}
 
-
-	public static <E, R extends Collection<E>> R merge(R r1, R r2) {
-		r1.addAll(r2);
-		return r1;
-	}
 
 	/**
 	 * 根据主键获取一个关联子表的数据, 并加载这个子表的关联子表数据数据（如果有）
@@ -323,7 +314,7 @@ public abstract class ContextHelper {
 	 */
 	public static <T extends Model> Class<T>[] getChildrenClass(Class<T> modelClass) {
 		if (modelClass.getAnnotation(ChildrensClass.class) == null) {
-			return new Class<>[]{};
+			return new Class[]{};
 		}
 		return (Class<T>[]) modelClass.getAnnotation(ChildrensClass.class).value();
 	}
@@ -387,7 +378,7 @@ public abstract class ContextHelper {
 	 * 根据VO分页查询并并导入指定关联表数据
 	 */
 	public static <T extends Model, V extends BaseModelVO, K> PageQuery includePageQuery(Class<T> modelClass, BaseModelVO input, boolean islike, Class<T>... otherClass) {
-		return includePageQuery(modelClass, Utils.trans2Map(metaModelOf(modelClass), input), islike, otherClass);
+		return includePageQuery(modelClass, Helper.trans2Map(metaModelOf(modelClass), input), islike, otherClass);
 	}
 
 	/**
@@ -412,12 +403,7 @@ public abstract class ContextHelper {
 	public static <T extends Model> PaginatorBuilder queryBuilder(Class<T> modelClass, Map input, boolean isEqual) {
 		PaginatorQuery pagehelper = analysis(input);
 		input = deLayer(input);
-		PaginatorBuilder<Model> paginator = Paginator.instance()
-				.countQuery(Keys.SQL_WHERE_DEFAULT)
-				.modelClass((Class<Model>) modelClass)
-				.orderBy(pagehelper.getOrderBy())
-				.pageSize(pagehelper.getPageSize())
-				.currentPageIndex(pagehelper.getPageNum(), true);
+		PaginatorBuilder<Model> paginator = Paginator.instance().countQuery(Keys.SQL_WHERE_DEFAULT).modelClass((Class<Model>) modelClass).orderBy(pagehelper.getOrderBy()).pageSize(pagehelper.getPageSize()).currentPageIndex(pagehelper.getPageNum(), true);
 		return paginator.params(getParams(modelClass, input, isEqual).toArray()).query(query(modelClass, input, isEqual));
 	}
 
@@ -479,7 +465,7 @@ public abstract class ContextHelper {
 	 * 根据VO分页查询
 	 */
 	public static <T extends Model, V extends BaseModelVO> PageQuery<V> pageQuery(Class<T> modelClass, BaseModelVO input, boolean... isLike) {
-		return pageQuery(modelClass, toUpperKey(Utils.trans2Map(metaModelOf(modelClass), input)), isLike);
+		return pageQuery(modelClass, toUpperKey(Helper.trans2Map(metaModelOf(modelClass), input)), isLike);
 	}
 
 	/**
@@ -503,7 +489,7 @@ public abstract class ContextHelper {
 	 * VO转model并保存
 	 */
 	public static <T extends Model, V extends BaseModelVO> T saveIt(T model, V input) {
-		return saveIt(model.fromMap(Utils.trans2Map(metaModelOf(modelClass(model)), input)));
+		return saveIt(model.fromMap(Helper.trans2Map(metaModelOf(modelClass(model)), input)));
 	}
 
 	/**
@@ -517,7 +503,7 @@ public abstract class ContextHelper {
 	 * 根据VO更新到数据库 id不可为空
 	 */
 	public static <T extends Model, V extends BaseModelVO> T saveItById(Class<T> modelClass, V input) {
-		return saveItById(modelClass, Utils.trans2Map(metaModelOf(modelClass), input));
+		return saveItById(modelClass, Helper.trans2Map(metaModelOf(modelClass), input));
 	}
 
 
@@ -629,7 +615,7 @@ public abstract class ContextHelper {
 	 * Collection<VO>转 List<Map>
 	 */
 	public static <T extends Model, V extends BaseModelVO> List<Map> toListMap(MetaModel metaModel, Collection<V> rows) {
-		return rows.stream().map(row -> Utils.trans2Map(metaModel, row)).collect(Collectors.toList());
+		return rows.stream().map(row -> Helper.trans2Map(metaModel, row)).collect(Collectors.toList());
 	}
 
 	/**
@@ -654,7 +640,7 @@ public abstract class ContextHelper {
 		if (model == null) {
 			return null;
 		}
-		return model.fromMap(Utils.trans2Map(metaModelOf(model), input));
+		return model.fromMap(Helper.trans2Map(metaModelOf(model), input));
 	}
 
 	/**
@@ -874,7 +860,7 @@ public abstract class ContextHelper {
 	 */
 	public static <T> CompletableFuture<T> asyncApply(Function<T> apply) {
 		ThreadPoolTaskExecutor contextPool = ApplicationContextHelper.getBeanByType(ThreadPoolTaskExecutor.class);
-		if (contextPool == null  ){
+		if (contextPool == null) {
 			return CompletableFuture.supplyAsync(apply::apply);
 		}
 		return CompletableFuture.supplyAsync(apply::apply, contextPool);
@@ -889,7 +875,7 @@ public abstract class ContextHelper {
 		Integer pageSize = Convert.toInteger(input.getOrDefault(Keys.SQL_PAGE_SIZE, 10));
 		String order = request.getParameter(Keys.SQL_PAGE_ODER);
 		String sort = request.getParameter(Keys.SQL_PAGE_SORT);
-		return new PaginatorQuery().setPageNum(pageNum).setPageSize(pageSize).setOrderBy(Utils.orderBy(sort, order));
+		return new PaginatorQuery().setPageNum(pageNum).setPageSize(pageSize).setOrderBy(Helper.orderBy(sort, order));
 	}
 
 	/**
@@ -959,4 +945,14 @@ public abstract class ContextHelper {
 		return result;
 	}
 
+	/**
+	 * 根据tableName获取modelClass
+	 */
+	public static Class<Model> modelClass(String tableName) {
+		MetaModel metaModel = Registry.instance().getMetaModel(tableName);
+		if (metaModel == null) {
+			throw new BizException("tableName:" + tableName + "不存在,或尚未建立model");
+		}
+		return (Class<Model>) metaModel.getModelClass();
+	}
 }

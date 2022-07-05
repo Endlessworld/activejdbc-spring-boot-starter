@@ -19,7 +19,7 @@
 package com.github.endless.activejdbc.configuration;
 
 import com.github.endless.activejdbc.query.Response;
-import com.github.endless.activejdbc.query.Utils;
+import com.github.endless.activejdbc.query.Helper;
 import lombok.extern.log4j.Log4j2;
 import org.javalite.activejdbc.InitException;
 import org.springframework.http.HttpStatus;
@@ -55,7 +55,7 @@ public class ExceptionControllerAdvice {
         if (!Objects.isNull(error.getCause())) {
             msg.append(error.getMessage());
         }
-        log.error("业务错误：\n{}", Utils.getStackTraceString(error));
+        log.error("业务错误：\n{}", Helper.getStackTraceString(error));
         return new Response<>(500, msg.toString(), null);
     }
 

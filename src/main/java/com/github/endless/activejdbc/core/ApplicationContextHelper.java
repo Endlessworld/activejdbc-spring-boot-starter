@@ -171,16 +171,6 @@ public class ApplicationContextHelper implements ApplicationContextAware, Applic
 		return applicationContext.getType(name);
 	}
 
-	/**
-	 * 根据tableName获取modelClass
-	 */
-	public static Class<Model> modelClass(String tableName) {
-		if (contextModels.containsKey(tableName)) {
-			return contextModels.get(tableName);
-		}
-		throw new BizException("tableName:" + tableName + "不存在,或尚未建立model");
-	}
-
 	public static <T> Map<String, T> getBeansOfType(Class<T> beanType) {
 		return applicationContext.getBeansOfType(beanType);
 	}

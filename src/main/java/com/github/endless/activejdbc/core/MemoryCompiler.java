@@ -20,7 +20,7 @@ package com.github.endless.activejdbc.core;
 
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.model.BaseModel;
-import com.github.endless.activejdbc.query.Utils;
+import com.github.endless.activejdbc.query.Helper;
 import com.google.common.collect.Sets;
 import javassist.*;
 import javassist.bytecode.AnnotationsAttribute;
@@ -33,6 +33,7 @@ import org.javalite.activejdbc.*;
 import org.javalite.activejdbc.annotations.DbName;
 import org.javalite.activejdbc.annotations.IdName;
 import org.javalite.activejdbc.annotations.Table;
+import org.javalite.common.Collections;
 import org.javalite.common.Convert;
 import org.javalite.common.JsonHelper;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -55,7 +56,7 @@ import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
-import static com.github.endless.activejdbc.query.Utils.convertList;
+import static com.github.endless.activejdbc.query.Helper.convertList;
 
 /***
  * @author Endless
@@ -122,7 +123,7 @@ public class MemoryCompiler {
 							contextModels.put(modelClass.getAnnotation(Table.class).value(), (Class<Model>) modelClass);
 							MetaModel metaModel = metaModelOf(metaTable.dbName, modelClass, dbType);
 							metaModels.add(metaModel);
-							registerModels(metaTable.dbName, Set.of(modelClass), dbType);
+							registerModels(metaTable.dbName, Collections.set(modelClass), dbType);
 							registerColumnMetadata(metaTable.tableName, fetchMetaParams(databaseMetaData, dbType, metaTable.tableName));
 							log.info("initialized table {} > model {}", metaTable.tableName, modelClass);
 						}
@@ -237,7 +238,7 @@ public class MemoryCompiler {
 	 * 包名+类名
 	 */
 	private static String fullClassName(String tableName) {
-		return MessageFormat.format(Keys.MSG_CLASS_NAME, Utils.toUpperFirstCode(Utils.lineToHump(tableName)));
+		return MessageFormat.format(Keys.MSG_CLASS_NAME, Helper.toUpperFirstCode(Helper.lineToHump(tableName)));
 	}
 
 	private static String getConnectionSchema(DatabaseMetaData databaseMetaData) throws SQLException {

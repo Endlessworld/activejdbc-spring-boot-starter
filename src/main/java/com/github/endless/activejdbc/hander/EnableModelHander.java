@@ -116,7 +116,7 @@ public class EnableModelHander {
         }
         Map<String, String> a = (Map<String, String>) ApplicationContextHelper.getRequestAttributes().get().getAttribute(URI_TEMPLATE_VARIABLES, 0);
         if (a.get("model-name") != null) {
-            result.add(ApplicationContextHelper.modelClass(a.get("model-name")).getAnnotation(DbName.class).value());
+            result.add(ContextHelper.modelClass(a.get("model-name")).getAnnotation(DbName.class).value());
         }
         if (!(pointClass.getGenericSuperclass() instanceof Class)) {
             Class<T> clazz = (Class<T>) ((ParameterizedType) pointClass.getGenericSuperclass()).getActualTypeArguments()[0];

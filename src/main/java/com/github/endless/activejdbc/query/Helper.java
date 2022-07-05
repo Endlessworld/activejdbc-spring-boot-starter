@@ -39,7 +39,7 @@ import java.util.stream.Stream;
  * @author Endless
  */
 @Log4j2
-public class Utils {
+public class Helper {
 
     private static final Set<String> FILTER = new HashSet<String>();
     private static final Pattern linePattern = Pattern.compile("_(\\w)");
@@ -49,10 +49,10 @@ public class Utils {
         FILTER.add("com.");
     }
 
-    public static boolean isNullOrEmpty(Object obj) {
-        return (null == obj || "".equals(obj) || "null".equals(obj));
+    public static <E, R extends Collection<E>> R merge(R r1, R r2) {
+        r1.addAll(r2);
+        return r1;
     }
-
     /**
      * 生成order by 子句
      * <hr>
