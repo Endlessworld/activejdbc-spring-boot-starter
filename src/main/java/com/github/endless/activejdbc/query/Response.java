@@ -33,37 +33,37 @@ import org.springframework.util.ObjectUtils;
 @AllArgsConstructor
 public class Response<T> {
 
-    public int code;
-    public String message;
-    public T data;
+	public int code;
+	public String message;
+	public T data;
 
 
-    /**
-     * model转VO并用响应对象包装
-     */
-    public static <T extends Model, V extends BaseModelVO> Response<V> respone(T result) {
-        return (Response<V>) respone(ContextHelper.toVO(result));
-    }
+	/**
+	 * model转VO并用响应对象包装
+	 */
+	public static <T extends Model, V extends BaseModelVO> Response<V> respone(T result) {
+		return (Response<V>) respone(ContextHelper.toVO(result));
+	}
 
-    /**
-     * 构造响应对象
-     */
-    public static <T> Response<T> respone(T result) {
-        return ObjectUtils.isEmpty(result) ? responeObjectNotExists() : responeSucess(result);
-    }
+	/**
+	 * 构造响应对象
+	 */
+	public static <T> Response<T> respone(T result) {
+		return ObjectUtils.isEmpty(result) ? responseObjectNotExists() : responseSuccess(result);
+	}
 
-    /**
-     * 构造响应空对象
-     */
-    public static <T> Response<T> responeObjectNotExists() {
-        return new Response<T>(ErrorCode.OBECT_NOT_EXISTS.getResponeCode(), ErrorCode.OBECT_NOT_EXISTS.getResponeMsg(), null);
-    }
+	/**
+	 * 构造响应空对象
+	 */
+	public static <T> Response<T> responseObjectNotExists() {
+		return new Response<>(ErrorCode.OBJECT_NOT_EXISTS.getCode(), ErrorCode.OBJECT_NOT_EXISTS.getMsg(), null);
+	}
 
-    /**
-     * 构造响应对象
-     */
-    public static <T> Response<T> responeSucess(T result) {
-        return new Response<T>(ErrorCode.SUCESS.getResponeCode(), ErrorCode.SUCESS.getResponeMsg(), result);
-    }
+	/**
+	 * 构造响应对象
+	 */
+	public static <T> Response<T> responseSuccess(T result) {
+		return new Response<>(ErrorCode.SUCCESS.getCode(), ErrorCode.SUCCESS.getMsg(), result);
+	}
 
 }

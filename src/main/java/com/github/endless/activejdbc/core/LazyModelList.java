@@ -29,21 +29,19 @@ import java.util.stream.Collectors;
  */
 public class LazyModelList<T extends Model> extends LazyList<T> {
 
-    protected LazyModelList(String subQuery, MetaModel metaModel, Collection<String> columns, Object... params) {
-        super(subQuery, metaModel, columns, params);
-    }
+	protected LazyModelList(String subQuery, MetaModel metaModel, Collection<String> columns, Object... params) {
+		super(subQuery, metaModel, columns, params);
+	}
 
-    protected LazyModelList(boolean forPaginator, MetaModel metaModel, String fullQuery, Collection<String> columns, Object... params) {
-        super(forPaginator, metaModel, fullQuery, columns, params);
-    }
+	protected LazyModelList(boolean forPaginator, MetaModel metaModel, String fullQuery, Collection<String> columns, Object... params) {
+		super(forPaginator, metaModel, fullQuery, columns, params);
+	}
 
-    public LazyModelList() {
-        super();
-    }
+	public LazyModelList() {
+		super();
+	}
 
-    protected String toInsert() {
-        return this.stream()
-                .map(e -> e.toInsert().replace("INSERT INTO", "REPLACE INTO"))
-                .collect(Collectors.joining(";"));
-    }
+	protected String toInsert() {
+		return this.stream().map(e -> e.toInsert().replace("INSERT INTO", "REPLACE INTO")).collect(Collectors.joining(";"));
+	}
 }

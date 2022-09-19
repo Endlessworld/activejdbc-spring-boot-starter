@@ -20,7 +20,7 @@ package com.github.endless.activejdbc.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.endless.activejdbc.annotation.ChildrensClass;
+import com.github.endless.activejdbc.annotation.ChildrenClass;
 import com.github.endless.activejdbc.annotation.TransferClass;
 import com.github.endless.activejdbc.configuration.BizException;
 import com.github.endless.activejdbc.constant.Keys;
@@ -31,7 +31,6 @@ import com.github.endless.activejdbc.model.BaseModel;
 import com.github.endless.activejdbc.query.Helper;
 import com.github.endless.activejdbc.query.PageQuery;
 import com.github.endless.activejdbc.query.PaginatorQuery;
-import com.google.common.collect.Lists;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.javalite.activejdbc.LazyList;
@@ -130,7 +129,10 @@ public abstract class ContextHelper {
 			return 0;
 		}
 		DB db = ContextHelper.openConnection(modelType.getName());
-		Integer rowsSize = Lists.partition(Lists.newArrayList(rows), 500).stream().map(list -> list.stream().map(e -> e.toInsert().replace("INSERT INTO", "REPLACE INTO")).collect(Collectors.joining(";"))).filter(e -> e.length() > 0).map(db::exec).mapToInt(e -> e).sum();
+		Integer rowsSize = new Partition<T>(rows, 500).stream()
+		                                              .map(list -> list.stream().map(e -> e.toInsert().replace("INSERT INTO", "REPLACE INTO"))
+		                                                               .collect(Collectors.joining(";"))).filter(e -> e.length() > 0).map(db::exec)
+		                                              .mapToInt(e -> e).sum();
 		log.info("replace into total {} ", rowsSize);
 		return rowsSize;
 	}
@@ -249,14 +251,16 @@ public abstract class ContextHelper {
 	 * 如果表的元数据中包含该键值对的key值 并且其value值不为空 则使用此键值对作为筛选条件
 	 */
 	public static boolean existKey(ColumnMetadata metaData, Map input) {
-		return (input.containsKey(metaData.getColumnName()) || input.containsKey(metaData.getColumnName().toLowerCase())) && (((input.get(metaData.getColumnName()) != null && input.get(metaData.getColumnName()) != "")) || ((input.get(metaData.getColumnName().toLowerCase()) != null && input.get(metaData.getColumnName().toLowerCase()) != "")));
+		return (input.containsKey(metaData.getColumnName()) || input.containsKey(metaData.getColumnName()
+		                                                                                 .toLowerCase())) && (((input.get(metaData.getColumnName()) != null && input.get(metaData.getColumnName()) != "")) || ((input.get(metaData.getColumnName()
+		                                                                                                                                                                                                                          .toLowerCase()) != "")));
 	}
 
 	/**
 	 * 根据表的元数据与提交的参数过滤出匹配的key
 	 */
 	public static <T extends Model> Stream<String> filterKeys(Class<T> modelClass, Map input) {
-		return keysStream(modelClass).filter(metaData -> existKey(metaData, deLayer(input))).map(mapper -> ((ColumnMetadata) mapper).getColumnName());
+		return keysStream(modelClass).filter(metaData -> existKey(metaData, deLayer(input))).map(mapper -> mapper.getColumnName());
 	}
 
 	/**
@@ -296,7 +300,8 @@ public abstract class ContextHelper {
 	 * 根据model获取一个或多个表的字段名（大写）
 	 */
 	public static Set getAttributeNames(Class<? extends Model>... modelClass) {
-		return Stream.of(modelClass).map(ModelDelegate::metaModelOf).map(MetaModel::getAttributeNamesSkipGenerated).reduce(new HashSet<>(), Helper::merge);
+		return Stream.of(modelClass).map(ModelDelegate::metaModelOf).map(MetaModel::getAttributeNamesSkipGenerated)
+		             .reduce(new HashSet<>(), Helper::merge);
 	}
 
 
@@ -313,10 +318,10 @@ public abstract class ContextHelper {
 	 * 获取model的关联子类
 	 */
 	public static <T extends Model> Class<T>[] getChildrenClass(Class<T> modelClass) {
-		if (modelClass.getAnnotation(ChildrensClass.class) == null) {
+		if (modelClass.getAnnotation(ChildrenClass.class) == null) {
 			return new Class[]{};
 		}
-		return (Class<T>[]) modelClass.getAnnotation(ChildrensClass.class).value();
+		return (Class<T>[]) modelClass.getAnnotation(ChildrenClass.class).value();
 	}
 
 	/**
@@ -330,7 +335,8 @@ public abstract class ContextHelper {
 	 * 根据表的元数据过滤提交的参数
 	 */
 	public static <T extends Model> List<String> getParams(Class<T> modelClass, Map input, boolean isEqual) {
-		return filterKeys(modelClass, input).map(key -> input.get(key.toLowerCase()) + (isEqual ? Keys.EMPTY : Keys.SQL_FIELD_LIKE)).collect(Collectors.toList());
+		return filterKeys(modelClass, input).map(key -> input.get(key.toLowerCase()) + (isEqual ? Keys.EMPTY : Keys.SQL_FIELD_LIKE))
+		                                    .collect(Collectors.toList());
 	}
 
 	/**
@@ -367,7 +373,7 @@ public abstract class ContextHelper {
 	/**
 	 * 树形加载子表数据 最多共3层 <br>
 	 */
-	public static <T extends Model> T includeAllChildrens(T model) {
+	public static <T extends Model> T includeAllChildren(T model) {
 		Stream.of(getChildrenClass(model)).filter(child -> ModelDelegate.belongsTo(child, modelClass(model))).forEach(childrenClass -> {
 			((BaseModel) model).include(childrenClass, getChildren(model, childrenClass));
 		});
@@ -403,7 +409,9 @@ public abstract class ContextHelper {
 	public static <T extends Model> PaginatorBuilder queryBuilder(Class<T> modelClass, Map input, boolean isEqual) {
 		PaginatorQuery pagehelper = analysis(input);
 		input = deLayer(input);
-		PaginatorBuilder<Model> paginator = Paginator.instance().countQuery(Keys.SQL_WHERE_DEFAULT).modelClass((Class<Model>) modelClass).orderBy(pagehelper.getOrderBy()).pageSize(pagehelper.getPageSize()).currentPageIndex(pagehelper.getPageNum(), true);
+		PaginatorBuilder<Model> paginator = Paginator.instance().countQuery(Keys.SQL_WHERE_DEFAULT).modelClass((Class<Model>) modelClass)
+		                                             .orderBy(pagehelper.getOrderBy()).pageSize(pagehelper.getPageSize())
+		                                             .currentPageIndex(pagehelper.getPageNum(), true);
 		return paginator.params(getParams(modelClass, input, isEqual).toArray()).query(query(modelClass, input, isEqual));
 	}
 
@@ -523,7 +531,6 @@ public abstract class ContextHelper {
 				model.set(Keys.CREATED_BY, ApplicationContextHelper.loginUser());
 			}
 			if (!model.isNew() && attribute.contains(Keys.UPDATED_BY)) {
-				System.err.println(ApplicationContextHelper.loginUser());
 				model.set(Keys.UPDATED_BY, ApplicationContextHelper.loginUser());
 			}
 			model.saveIt();
@@ -577,21 +584,21 @@ public abstract class ContextHelper {
 	 * 集合转where条件 example : [a,b,c] >>> "'a','b','c'"
 	 */
 	public static <E extends CharSequence> String toJoinString(E... collection) {
-		return toJoinString(new ArrayList<E>(Arrays.asList(collection)));
+		return Stream.of(collection).collect(Collectors.joining("','", "'", "'"));
 	}
 
 	/**
 	 * 集合转where条件 example : [a,b,c] >>> "?,?,?"
 	 */
 	public static <E> String toHolderString(List<E> collection) {
-		return String.join(",", Lists.transform(collection, e -> "?"));
+		return collection.stream().map(e -> "?").collect(Collectors.joining(","));
 	}
 
 	/**
 	 * 集合转where条件 example : [a,b,c] >>> "?,?,?"
 	 */
 	public static <E> String toHolderString(E... collection) {
-		return toHolderString(new ArrayList<E>(Arrays.asList(collection)));
+		return Stream.of(collection).map(e -> "?").collect(Collectors.joining(","));
 	}
 
 	/**
@@ -658,7 +665,8 @@ public abstract class ContextHelper {
 	}
 
 	public static Map toKeyValue(Map input, UnaryOperator<String> apply) {
-		return entryStream(input).collect(HashMap::new, (n, e) -> n.put(Optional.ofNullable(e.getKey()).map(apply).orElse(null), e.getValue()), HashMap::putAll);
+		return entryStream(input).collect(HashMap::new, (n, e) -> n.put(Optional.ofNullable(e.getKey()).map(apply)
+		                                                                        .orElse(null), e.getValue()), HashMap::putAll);
 	}
 
 	/**
@@ -951,7 +959,7 @@ public abstract class ContextHelper {
 	public static Class<Model> modelClass(String tableName) {
 		MetaModel metaModel = Registry.instance().getMetaModel(tableName);
 		if (metaModel == null) {
-			throw new BizException("tableName:" + tableName + "不存在,或尚未建立model");
+			throw new BizException("tableName:" + tableName + "不存在,或尚未创建model");
 		}
 		return (Class<Model>) metaModel.getModelClass();
 	}

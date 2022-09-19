@@ -117,7 +117,7 @@ public abstract class AbstractController<T extends Model, V extends BaseModelVO>
             @ApiImplicitParam(name = "id", value = "对应主键id", required = true, dataType = "Long", paramType = "path")})
     @RequestMapping(value = "/{id}/includeAll", method = RequestMethod.GET)
     public Response<Map<String, Object>> includeAll(@PathVariable(name = "id") Long id) {
-        return Response.respone(ContextHelper.includeAllChildrens(ContextHelper.findById(modelClass(), id)).toMap());
+        return Response.respone(ContextHelper.includeAllChildren(ContextHelper.findById(modelClass(), id)).toMap());
     }
 
 }

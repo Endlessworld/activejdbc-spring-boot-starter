@@ -32,8 +32,8 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ChildrensClass {
+public @interface ChildrenClass {
 
-    Class<? extends Model>[] value();
+	Class<? extends Model>[] value();
 
 }

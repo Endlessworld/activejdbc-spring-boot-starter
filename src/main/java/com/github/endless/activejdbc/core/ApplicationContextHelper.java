@@ -18,35 +18,26 @@
 
 package com.github.endless.activejdbc.core;
 
-import com.github.endless.activejdbc.annotation.CallbackListeners;
-import com.github.endless.activejdbc.annotation.ValidatorListener;
 import com.github.endless.activejdbc.configuration.BizException;
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.constant.ModelType;
-import org.javalite.activejdbc.CallbackListener;
-import org.javalite.activejdbc.Model;
-import org.javalite.activejdbc.ModelDelegate;
-import org.javalite.activejdbc.annotations.Table;
-import org.javalite.activejdbc.logging.LogFilter;
-import org.javalite.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEvent;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -56,10 +47,8 @@ import java.util.function.Function;
  */
 @Component("ActiveJdbcContextHelper")
 @Order
-public class ApplicationContextHelper implements ApplicationContextAware, ApplicationRunner {
-	private final Logger log = LoggerFactory.getLogger(ApplicationContextHelper.class);
+public class ApplicationContextHelper implements ApplicationContextAware {
 	private static final ThreadLocal<Object> contextDataSource = ThreadLocal.withInitial(() -> ModelType.MASTER);
-	private static final Map<String, Class<Model>> contextModels = new HashMap<>();
 	public static List<Object> dataSourceKeys = new ArrayList<>();
 	private static ApplicationContext applicationContext = null;
 
@@ -142,94 +131,17 @@ public class ApplicationContextHelper implements ApplicationContextAware, Applic
 	/**
 	 * 获取对象
 	 */
-	public static Object getBeanByName(String name) {
-		return applicationContext.getBean(name);
-	}
-
-	/**
-	 * 获取对象
-	 */
 	public static <T> T getBeanByType(Class<T> beanType) {
 		return Optional.ofNullable(applicationContext).map(e -> e.getBean(beanType)).orElse(null);
-	}
-
-	/**
-	 * 获取类型为requiredType的对象 如果bean不能被类型转换，相应的异常将会被抛出（BeanNotOfRequiredTypeException）
-	 */
-	public static <T> Object getBeanByName(String name, Class<T> beanType) {
-		return applicationContext.getBean(name, beanType);
-	}
-
-	public static <T> String loginUser() {
-		return Keys.EMPTY;
-	}
-
-	/**
-	 * 获取Class
-	 */
-	public static Class<?> getType(String name) {
-		return applicationContext.getType(name);
 	}
 
 	public static <T> Map<String, T> getBeansOfType(Class<T> beanType) {
 		return applicationContext.getBeansOfType(beanType);
 	}
 
-	public static Map<String, Class<Model>> getContextModels() {
-		return contextModels;
-	}
-
-	@Override
-	public void run(ApplicationArguments args) {
-		LogFilter.setLogExpression(".*");
-		log.info("activejdbc initContextModels");
-		initContextModels();
-		log.info("activejdbc compiler");
-		MemoryCompiler.invokeActive();
-		Map<String, Object> callbackListeners = applicationContext.getBeansWithAnnotation(CallbackListeners.class);
-		for (Map.Entry<String, Object> callbackListener : callbackListeners.entrySet()) {
-			if (callbackListener.getValue() instanceof CallbackListener) {
-				CallbackListener callback = (CallbackListener) callbackListener.getValue();
-				CallbackListeners callbackAnnotation = AnnotationUtils.findAnnotation(callback.getClass(), CallbackListeners.class);
-				if (callbackAnnotation.tableNames().length > 0 || callbackAnnotation.value().length > 0) {
-					contextModels.values().stream().filter(e -> {
-						return Arrays.asList(callbackAnnotation.tableNames()).contains(ModelDelegate.tableNameOf(e)) || Arrays.asList(callbackAnnotation.value()).contains(e);
-					}).forEach(e -> {
-						ModelDelegate.callbackWith(e, callback);
-					});
-				}
-			}
-		}
-		Map<String, Object> validatorListeners = applicationContext.getBeansWithAnnotation(ValidatorListener.class);
-		for (Map.Entry<String, Object> validatorListener : validatorListeners.entrySet()) {
-			if (validatorListener.getValue() instanceof Validator) {
-				Validator validator = (Validator) validatorListener.getValue();
-				ValidatorListener validatorAnnotation = AnnotationUtils.findAnnotation(validator.getClass(), ValidatorListener.class);
-				if (validatorAnnotation.tableNames().length > 0 || validatorAnnotation.value().length > 0) {
-					contextModels.values().stream().filter(e -> {
-						return Arrays.asList(validatorAnnotation.tableNames()).contains(ModelDelegate.tableNameOf(e)) || Arrays.asList(validatorAnnotation.value()).contains(e);
-					}).forEach(e -> {
-						ModelDelegate.validateWith(e, validator);
-					});
-				}
-			}
-		}
+	public static <T> String loginUser() {
+		return Keys.EMPTY;
 	}
 
 
-	public void initContextModels() {
-		try {
-			Properties modelNames = PropertiesLoaderUtils.loadAllProperties("activejdbc_models.properties");
-			for (final String className : modelNames.stringPropertyNames()) {
-				try {
-					Class<Model> modelClass = (Class<Model>) Class.forName(className);
-					contextModels.put(modelClass.getAnnotation(Table.class).value(), modelClass);
-				} catch (Exception e) {
-					throw new BizException("Failed to loader modelClass " + className, e);
-				}
-			}
-		} catch (Exception e) {
-			throw new BizException("Failed to loader activejdbc_models.properties,Please execute maven install and restart", e);
-		}
-	}
 }

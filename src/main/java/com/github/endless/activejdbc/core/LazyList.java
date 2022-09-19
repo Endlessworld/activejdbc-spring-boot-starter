@@ -101,15 +101,9 @@ public class LazyList<T extends Model> extends AbstractLazyList<T> implements Ex
             return instance;
         } catch (InstantiationException e) {
             throw new InitException("Failed to create a new instance of: " + metaModel.getModelClass() + ", are you sure this class has a default constructor?");
-        } catch (DBException e) {
+        } catch (DBException | InitException e) {
             throw e;
-        } catch (InitException e) {
-            throw e;
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        } catch (InvocationTargetException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        } catch (NoSuchMethodException e) {
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
     }

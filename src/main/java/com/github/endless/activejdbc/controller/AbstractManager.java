@@ -82,7 +82,7 @@ public abstract class AbstractManager<T extends Model, V extends BaseModelVO> {
     }
 
     public Response<Map<String, Object>> includeAll(@PathVariable(name = "id") Long id) {
-        return Response.respone(ContextHelper.includeAllChildrens(ContextHelper.findById(modelClass(), id)).toMap());
+        return Response.respone(ContextHelper.includeAllChildren(ContextHelper.findById(modelClass(), id)).toMap());
     }
 
 }

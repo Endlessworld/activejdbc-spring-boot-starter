@@ -21,7 +21,6 @@ package com.github.endless.activejdbc.core;
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.model.BaseModel;
 import com.github.endless.activejdbc.query.Helper;
-import com.google.common.collect.Sets;
 import javassist.*;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ClassFile;
@@ -102,9 +101,9 @@ public class MemoryCompiler {
 	static Set<MetaModel> getModelsForDb() {
 		Set<MetaModel> metaModels = new HashSet<>();
 		ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
-		Map<String, Class<Model>> contextModels = ApplicationContextHelper.getContextModels();
+		Map<String, Class<Model>> contextModels = ContextModelInitialize.getContextModels();
 		Map<String, DataSource> dataSources = ApplicationContextHelper.getBeansOfType(DataSource.class);
-		Set<Map<String, String>> primaryKeys = Sets.newHashSet();
+		Set<Map<String, String>> primaryKeys = new HashSet<>();
 		for (Map.Entry<String, DataSource> dataSourceEntry : dataSources.entrySet()) {
 			try {
 				log.info("lookup dataSource :{} ", dataSourceEntry);

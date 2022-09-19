@@ -27,20 +27,20 @@ import lombok.Getter;
 @Getter
 public enum ErrorCode {
 
-    SUCESS(0, "success"),
+	SUCCESS(0, "success"),
 
-    OBECT_EXISTS(-1, "object exists"),
+	OBJECT_EXISTS(-1, "object exists"),
 
-    OBECT_NOT_EXISTS(-2, "object not exists"),
+	OBJECT_NOT_EXISTS(-2, "object not exists"),
 
-    OBECT_IN_USING(-3, "object in-using");
+	OBJECT_IN_USING(-3, "object in-using");
 
-    private final int responeCode;
+	private final int code;
 
-    private final String responeMsg;
+	private final String msg;
 
-    ErrorCode(int code, String msg) {
-        this.responeCode = code;
-        this.responeMsg = msg;
-    }
+	ErrorCode(int code, String msg) {
+		this.code = code;
+		this.msg = msg;
+	}
 }

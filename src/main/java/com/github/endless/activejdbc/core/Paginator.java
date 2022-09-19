@@ -21,7 +21,6 @@ package com.github.endless.activejdbc.core;
 
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.query.PageQuery;
-import com.google.common.collect.Sets;
 import org.javalite.activejdbc.*;
 import org.javalite.activejdbc.cache.QueryCache;
 import org.javalite.activejdbc.logging.LogFilter;
@@ -325,7 +324,7 @@ public class Paginator<T extends Model> implements Serializable {
         if (include.length > 0) {
             rows.include(include);
         }
-        return new PageQuery<Map<String, Object>>(orderBys, getPageSize(), getCurrentPage(), getCount(), rowsFilter(rows.toMaps()));
+        return new PageQuery<>(orderBys, getPageSize(), getCurrentPage(), getCount(), rowsFilter(rows.toMaps()));
     }
 
     /**
@@ -408,7 +407,7 @@ public class Paginator<T extends Model> implements Serializable {
         }
 
         public PaginatorBuilder<T> columns(Collection columns) {
-            this.columns = Sets.newHashSet(columns);
+            this.columns = new HashSet(columns);
             return this;
         }
 
@@ -490,7 +489,7 @@ public class Paginator<T extends Model> implements Serializable {
          * @return new Paginator properly configured.
          */
         public Paginator<T> create() {
-            Paginator<T> paginator = new Paginator<T>(modelClass, pageSize, suppressCounts, query, countQuery, params);
+            Paginator<T> paginator = new Paginator<>(modelClass, pageSize, suppressCounts, query, countQuery, params);
             paginator.setCurrentPageIndex(currentPageIndex, skipCheck);
             paginator.orderBy(orderBys);
             paginator.setColumns(columns);

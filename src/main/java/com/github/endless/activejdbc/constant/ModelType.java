@@ -23,19 +23,19 @@ package com.github.endless.activejdbc.constant;
  */
 
 public enum ModelType {
-    MASTER("itpm"), SLAVE("slave");
+	MASTER("master"), SLAVE("slave");
 
-    private String name;
+	private String name;
 
-    ModelType(String name) {
-        this.name = name;
-    }
+	ModelType(String name) {
+		this.name = name;
+	}
 
-    public String getName() {
-        return name;
-    }
+	public String getName() {
+		return name;
+	}
 
-    public void setName(String name) {
-        this.name = name;
-    }
+	public void setName(String name) {
+		this.name = name;
+	}
 }
