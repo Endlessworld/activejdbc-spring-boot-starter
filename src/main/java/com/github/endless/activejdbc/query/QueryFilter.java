@@ -23,7 +23,9 @@ import com.github.endless.activejdbc.core.ContextHelper;
 import com.github.endless.activejdbc.core.Paginator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.javalite.activejdbc.Model;
 import org.javalite.activejdbc.ModelDelegate;
 
@@ -38,6 +40,8 @@ import java.util.stream.Collectors;
  */
 @Data
 @SuppressWarnings("all")
+@NoArgsConstructor
+@AllArgsConstructor
 @ApiModel(description = "通用查询器")
 public class QueryFilter<V> {
 
@@ -50,8 +54,8 @@ public class QueryFilter<V> {
     @ApiModelProperty(name = "sorter", notes = "字段排序")
     private List<FieldSort> sorter = new ArrayList<FieldSort>();
 
-    @ApiModelProperty(name = "columns", notes = "返回字段", example = "['name']")
-    private List<String> columns = new ArrayList<String>();
+    @ApiModelProperty(name = "columns", notes = "返回字段")
+    private List<String> columns;
 
     @ApiModelProperty(name = "query", notes = "查询条件组,各条件组之间以and链接<br> 同一组条件之间以or链接")
     private List<List<QueryField>> querys = new ArrayList<List<QueryField>>();
@@ -68,7 +72,11 @@ public class QueryFilter<V> {
      * 如果query是一个空map则返回 1 and 1 相当于没有查询条件<br>
      */
     public String query(Class<? extends Model>... modelClass) {
-        params.clear();
+        if(params == null ){
+            params = new LinkedList<>();
+        }else{
+            params.clear();
+        }
         StringBuffer where = new StringBuffer();
         where.append(querys.stream().map(e -> {
             return e.stream().map(field -> {

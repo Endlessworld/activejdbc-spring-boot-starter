@@ -24,16 +24,20 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.github.endless.activejdbc.constant.Keys.SWAGGER_MSG_ALLOW_ABLE_VALUES_OPERATION;
 
 /**
  * @author Endless
  */
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @ApiModel(description = "查询条件")
 public class QueryField {
 
@@ -94,7 +98,8 @@ public class QueryField {
     @ApiModelProperty(name = "value", notes = "字段值: 数字，日期，字符串，数组  [1,2,3]/'value'/123/'2020-10-01' ", example = "1")
     private Object value;
 
-    @ApiModelProperty(name = "operation", notes = Keys.SWAGGER_MSG_NOTES_OPERATION)
+    @ApiModelProperty(name = "operation", example = "EQUAL",notes = Keys.SWAGGER_MSG_NOTES_OPERATION,required = true,allowableValues =
+            SWAGGER_MSG_ALLOW_ABLE_VALUES_OPERATION)
     private QueryOP operation = QueryOP.EQUAL;
 
     public Object getValue() {

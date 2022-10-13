@@ -21,6 +21,6 @@ package com.github.endless.activejdbc.domains;
 /**
  * @author Endless
  */
-public interface BaseModelVO {
+public class BaseModelVO {
 
 }

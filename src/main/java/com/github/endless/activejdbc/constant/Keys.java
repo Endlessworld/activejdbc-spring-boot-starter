@@ -264,4 +264,8 @@ public class Keys {
             + "[NOT_EMPTY: 非空字符串,!= ''] \r\n[IN: 在...中,in] \r\n[NOT_IN: 不在...中,not in] \r\n"
             + "[BETWEEN: 在...之间,between] \r\n[NOT_BETWEEN: 不在...之间,not between] \r\n"
             + "[EQUAL_IGNORE_CASE: 等于忽略大小写,=] \r\n[REGEXP: 正则表达式匹配,REGEXP] ";
+
+    public static final String SWAGGER_MSG_ALLOW_ABLE_VALUES_OPERATION = "EQUAL,NOT_EQUAL,LESS,LESS_EQUAL,GREAT,GREAT_EQUAL,LIKE,NOT_LIKE," +
+            "LEFT_LIKE," +
+            "NOT_LEFT_LIKE ,RIGHT_LIKE,NOT_RIGHT_LIKE,IS_NULL,NOT_NULL,IS_EMPTY,NOT_EMPTY,IN,NOT_IN,BETWEEN,NOT_BETWEEN,EQUAL_IGNORE_CASE,REGEXP";
 }

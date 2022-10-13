@@ -23,6 +23,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.Serializable;
@@ -33,6 +34,7 @@ import java.util.regex.Pattern;
  */
 @ApiModel(description = "排序对象")
 @AllArgsConstructor
+@NoArgsConstructor
 @Data
 @Log4j2
 public class FieldSort implements Serializable {
@@ -42,7 +44,7 @@ public class FieldSort implements Serializable {
     @ApiModelProperty(name = "property", notes = "排序字段", example = "id")
     private String property;
 
-    @ApiModelProperty(name = "direction", notes = "排序方向")
+    @ApiModelProperty(name = "direction", notes = "排序方向",allowableValues = "ASC,DESC")
     private Direction direction = Direction.ASC;
 
     public static FieldSort newInstance(String property, Direction direction) {
