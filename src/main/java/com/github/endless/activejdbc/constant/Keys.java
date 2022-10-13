@@ -204,7 +204,7 @@ public class Keys {
     /**
      * 关闭事务
      */
-    public static final String LOG_MSG_CLOSE_TRANSACTION = "activejdbc closeTransaction : {}";
+    public static final String LOG_MSG_CLOSE_TRANSACTION = "activejdbc releaseConnection : {}";
     /**
      * 异步任务结果获取失败
      */

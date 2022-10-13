@@ -40,7 +40,6 @@ import java.util.Map;
  * @author Endless
  */
 @RestController
-@EnableModel(value = {})
 @RequestMapping("model")
 @Api(tags = "基础数据接口")
 @SuppressWarnings("all")
@@ -60,6 +59,7 @@ public class RestModelController {
     /**
      * 新增
      */
+    @EnableModel
     @ApiOperation("新增")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "input", value = "参数，此处应为键值对，name取对应表字段名，不可包含主键", required = true, dataType = "object", paramType = "body")})
@@ -71,6 +71,7 @@ public class RestModelController {
     /**
      * 标记删除
      */
+    @EnableModel
     @ApiOperation("根据主键逻辑删除")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "id", value = "对应主键id", required = true, dataType = "Long", paramType = "path")})
@@ -79,7 +80,7 @@ public class RestModelController {
         return Response.respone(ContextHelper.deleteTagById(modelClass(), id).toMap());
     }
 
-
+    @EnableModel
     @ApiOperation("批量新增或修改（有id则根据id修改,否则新增）")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "input", value = "参数，此处应为键值对，name取对应表字段名", required = true, dataType = "object", paramType = "body")})
@@ -87,7 +88,7 @@ public class RestModelController {
     public Response<List<Model>> createOrUpdate(@RequestBody List<Map> rows) {
         return Response.respone(ContextHelper.batchCreateOrUpdateForMap(modelClass(), rows));
     }
-
+    @EnableModel
     @ApiOperation("根据ID数组批量删除")
     @ApiImplicitParams({@ApiImplicitParam(name = "id", value = "对应主键id", required = true, allowMultiple = true, dataType = "Long", paramType = "query")})
     @RequestMapping(value = "/{model-name}/array", method = RequestMethod.DELETE)
@@ -100,6 +101,7 @@ public class RestModelController {
     /**
      * 编辑 根据主键覆盖剩余字段
      */
+    @EnableModel
     @ApiOperation("编辑 根据主键覆盖剩余字段")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "input", value = "参数，此处应为键值对，name取对应表字段名", required = true, dataType = "object", paramType = "body")})
@@ -111,6 +113,7 @@ public class RestModelController {
     /**
      * 分页查询
      */
+    @EnableModel
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "pageSize", defaultValue = "10", value = "分页参数-每页条数", dataType = "int", paramType = "query"),
             @ApiImplicitParam(name = "pageNum", defaultValue = "1", value = "分页参数-当前页码", dataType = "int", paramType = "query"),
@@ -120,10 +123,10 @@ public class RestModelController {
             @ApiImplicitParam(name = "input", value = "参数，此处应为键值对，name取对应表字段名", dataType = "String", paramType = "query")})
     @ApiOperation("分页查询 ")
     @RequestMapping(value = "/{model-name}", method = RequestMethod.GET)
-    public Response<PageQuery> pageQuery(@RequestParam Map<String, Object> input, boolean isEqual) {
+    public Response<PageQuery> list(@RequestParam Map<String, Object> input, boolean isEqual) {
         return Response.respone(ContextHelper.pageQuery(modelClass(), input, isEqual));
     }
-
+    @EnableModel
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "pageSize", defaultValue = "10", value = "分页参数-每页条数", dataType = "int", paramType = "query"),
             @ApiImplicitParam(name = "pageNum", defaultValue = "1", value = "分页参数-当前页码", dataType = "int", paramType = "query"),
@@ -137,7 +140,7 @@ public class RestModelController {
     public Response<PageQuery> queryTree(@RequestParam Map<String, Object> input, boolean isEqual) {
         return Response.respone(ContextHelper.includePageQuery(modelClass(), input, isEqual, ContextHelper.getChildrenClass(modelClass())));
     }
-
+    @EnableModel
     @ApiOperation("高级筛选")
     @ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path")
     @RequestMapping(value = "/{model-name}/filter", method = RequestMethod.POST)
@@ -148,6 +151,7 @@ public class RestModelController {
     /**
      * 根据id加载
      */
+    @EnableModel
     @ApiOperation("根据主键加载一条")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "id", value = "对应主键id", required = true, dataType = "Long", paramType = "path")})
@@ -159,6 +163,7 @@ public class RestModelController {
     /**
      * 加载符合条件的第一条
      */
+    @EnableModel
     @ApiOperation("加载符合条件的第一条")
     @ApiImplicitParams({@ApiImplicitParam(name = "model-name", value = "表名", required = true, dataType = "String", paramType = "path"),
             @ApiImplicitParam(name = "input", value = "参数，此处应为键值对，name取对应表字段名", required = true, dataType = "String", paramType = "query")})

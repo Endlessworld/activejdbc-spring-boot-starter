@@ -266,8 +266,6 @@ public class Paginator<T extends Model> implements Serializable {
                 throw new IllegalArgumentException("cannot provide parameters with query: '*'");
             }
         }
-        System.err.println(query);
-        System.err.println(Arrays.toString(params));
         return fullQuery ? new LazyModelList<T>(true, metaModel, this.query, columns, params)
                 : new LazyModelList<T>(query, metaModel, columns, params);
     }

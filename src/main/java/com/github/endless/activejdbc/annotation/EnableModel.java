@@ -33,6 +33,6 @@ import java.lang.annotation.*;
 @Inherited
 public @interface EnableModel {
 
-    String[] value();
+    String[] value() default {};
 
 }

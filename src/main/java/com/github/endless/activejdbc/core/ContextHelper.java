@@ -64,7 +64,7 @@ import java.util.stream.Stream;
 public abstract class ContextHelper {
 
 	private static final ThreadLocal<List<DB>> connections = new ThreadLocal<>();
-
+	private static final ThreadLocal<Map<Connection, DataSource>> connectionMap = new ThreadLocal<>();
 	private static final Map<Class<? extends Model>, ColumnMetadata> VERSION = new HashMap<>();
 
 
@@ -716,53 +716,10 @@ public abstract class ContextHelper {
 		return transferClass(modelClass(model));
 	}
 
-	/**
-	 * 根据注解打开多个数据库链接
-	 */
-	public static List<DB> openConnections(ModelType... modelType) {
-		return openConnections(Stream.of(modelType).map(ModelType::getName).toArray(String[]::new));
-	}
-
-	/**
-	 * 根据注解打开多个数据库链接
-	 */
-	public static List<DB> openConnections(String... modelType) {
-		return Stream.of(modelType).map(ContextHelper::openConnection).collect(Collectors.toList());
-	}
-
-	/**
-	 * 根据注解打开数据库链接
-	 */
-	public static DB openConnection(String modelType) {
-		if (DB.getCurrrentConnectionNames().contains(modelType)) {
-			return initDB(modelType);
-		}
-		DataSource dataSource = getDataSource(modelType);
-		if (dataSource != null) {
-			try {
-				Connection connection = DataSourceUtils.doGetConnection(dataSource);
-				DB db = new DB(modelType);
-				db.attach(connection);
-				return db;
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-			return new DB(modelType).open(dataSource);
-		}
-		return initDB(modelType);
-	}
 
 	public static DB initDB(String name) {
 		DB db = new DB(name);
 		return db.hasConnection() ? db : db.open();
-	}
-
-
-	/**
-	 * 根据注解切换数据源
-	 */
-	public static DataSource getDataSource(ModelType modelType) {
-		return getDataSource(modelType.getName());
 	}
 
 	/**
@@ -804,42 +761,63 @@ public abstract class ContextHelper {
 	}
 
 	/**
-	 * 当前所有链接关闭
+	 * 释放当前所有链接
 	 */
-	public static void close() {
+	public static void releaseConnection() {
 		if (!DB.getCurrrentConnectionNames().isEmpty()) {
 			log.info(Keys.LOG_MSG_CLOSE_TRANSACTION, DB.getCurrrentConnectionNames());
-			connections.get().forEach(DB::close);
+			connections.get().stream().map(DB::detach).forEach(connection -> {
+				DataSourceUtils.releaseConnection(connection, connectionMap.get().get(connection));
+			});
 		}
 	}
 
-	public static void initConnections(String... modelType) {
-		if (modelType.length == 0) {
-			connections.set(openConnections(modelType));
-		} else {
-			connections.set(openConnections(modelType));
-		}
-		log.info("activejdbc openConnections : {}", DB.getCurrrentConnectionNames());
+	public static void initConnections(String... dbName) {
+		connections.set(openConnections(dbName));
 	}
 
 	/**
-	 * 打开一个或多个数据库链接 默认打开master
+	 * 根据注解打开多个数据库链接
 	 */
-	public static void initConnections(ModelType... modelType) {
-		if (modelType.length == 0) {
-			connections.set(openConnections(ModelType.MASTER));
-		} else {
-			connections.set(openConnections(modelType));
+	public static List<DB> openConnections(String... dbName) {
+		return Stream.of(dbName).map(ContextHelper::openConnection).collect(Collectors.toList());
+	}
+
+	public static void connectionCache(Connection connection, DataSource dataSource) {
+		if (connectionMap.get() == null) {
+			connectionMap.set(new HashMap<>());
 		}
-		log.info("activejdbc openConnections : {}", DB.getCurrrentConnectionNames());
+		connectionMap.get().put(connection, dataSource);
+	}
+
+	/**
+	 * 根据注解打开数据库链接
+	 */
+	public static DB openConnection(String modelType) {
+		if (DB.getCurrrentConnectionNames().contains(modelType)) {
+			return initDB(modelType);
+		}
+		DataSource dataSource = getDataSource(modelType);
+		if (dataSource != null) {
+			try {
+				Connection connection = DataSourceUtils.doGetConnection(dataSource);
+				DB db = new DB(modelType);
+				db.attach(connection);
+				connectionCache(connection, dataSource);
+				return db;
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return initDB(modelType);
 	}
 
 	/**
 	 * 传入一个匿名函数 并返回一个 对传入函数包装了事务管理的匿名函数
 	 */
-	public static <T> Function<T> transaction(Function<T> apply, ModelType... ModelType) {
+	public static <T> Function<T> transaction(Function<T> apply, String... dbName) {
 		return () -> {
-			ContextHelper.initConnections(ModelType);
+			ContextHelper.initConnections(dbName);
 			T result;
 			try {
 				ContextHelper.openTransaction();
@@ -850,7 +828,7 @@ public abstract class ContextHelper {
 				ContextHelper.rollbackTransaction();
 				throw e;
 			} finally {
-				ContextHelper.close();
+				ContextHelper.releaseConnection();
 			}
 			return result;
 		};

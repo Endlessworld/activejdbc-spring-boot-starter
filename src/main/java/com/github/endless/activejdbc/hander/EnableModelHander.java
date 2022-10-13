@@ -71,7 +71,7 @@ public class EnableModelHander {
                 return point.proceed();
             }
             ApplicationContextHelper.setDataSourceKey(modelType[0]);
-            logger.info("{} | {} |mybatis data source switch to {}", getSimpleName(point),
+            logger.info("{} | {} | data source switch to {}", getSimpleName(point),
                     point.getSignature().getName(), modelType[0]);
             try {
                 ContextHelper.openTransaction();
@@ -82,7 +82,7 @@ public class EnableModelHander {
                 ContextHelper.rollbackTransaction();
                 throw e;
             } finally {
-                ContextHelper.close();
+                ContextHelper.releaseConnection();
             }
         } catch (Throwable e) {
             logger.error("SwitchDataSource failed.");
