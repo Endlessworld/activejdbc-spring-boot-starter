@@ -23,8 +23,8 @@
 基于以上特性，该项目期望淘汰一些代码生成工具和插件。
 
 ### 演示项目地址 
-* https://github.com/Endlessworld/active-api
-
+* https://github.com/endlessworld/active-api
+* https://gitee.com/endlessvoid/active-api
 ### 引入方式
 2021-10-06 1.0 版本正式发布到中央仓库
 ```
