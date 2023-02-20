@@ -47,24 +47,31 @@ import java.util.stream.Collectors;
 @ApiModel(description = "通用查询器")
 public class QueryFilter<V> {
 
+    @JsonInclude
     @ApiModelProperty(name = "page", notes = "页号", example = "1")
     private Integer pageNum = 1;
 
+    @JsonInclude
     @ApiModelProperty(name = "pageSize", notes = "分页大小", example = "10")
     private Integer pageSize = 10;
 
+    @JsonInclude
     @ApiModelProperty(name = "sorter", notes = "字段排序")
     private List<FieldSort> sorter = new ArrayList<FieldSort>();
 
+    @JsonInclude
     @ApiModelProperty(name = "columns", notes = "返回字段")
     private List<String> columns;
 
+    @JsonInclude
     @ApiModelProperty(name = "query", notes = "查询条件组,各条件组之间以and链接<br> 同一组条件之间以or链接")
     private List<List<QueryField>> querys = new ArrayList<List<QueryField>>();
 
+    @JsonInclude
     @ApiModelProperty(name = "querys", notes = "查询条件组", hidden = true)
     private List<Object> params = new LinkedList<>();
 
+    @JsonInclude
     @ApiModelProperty(name = "view", notes = "可作为查询参数的字段列表")
     private V view;
 
