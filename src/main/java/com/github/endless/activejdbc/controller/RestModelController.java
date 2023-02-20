@@ -29,6 +29,7 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import org.javalite.activejdbc.Model;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +46,10 @@ import java.util.Map;
 @SuppressWarnings("all")
 public class RestModelController {
 
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.setDisallowedFields(new String[]{});
+    }
     private ThreadLocal<String> tableName = new ThreadLocal<>();
 
     @ModelAttribute
