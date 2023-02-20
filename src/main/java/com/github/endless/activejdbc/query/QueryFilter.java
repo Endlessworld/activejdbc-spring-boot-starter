@@ -18,6 +18,7 @@
 
 package com.github.endless.activejdbc.query;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.github.endless.activejdbc.constant.Keys;
 import com.github.endless.activejdbc.core.ContextHelper;
 import com.github.endless.activejdbc.core.Paginator;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
 @SuppressWarnings("all")
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude
 @ApiModel(description = "通用查询器")
 public class QueryFilter<V> {
 
