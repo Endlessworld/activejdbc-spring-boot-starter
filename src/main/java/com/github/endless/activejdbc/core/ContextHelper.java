@@ -28,9 +28,7 @@ import com.github.endless.activejdbc.constant.ModelType;
 import com.github.endless.activejdbc.core.Paginator.PaginatorBuilder;
 import com.github.endless.activejdbc.domains.BaseModelVO;
 import com.github.endless.activejdbc.model.BaseModel;
-import com.github.endless.activejdbc.query.Helper;
-import com.github.endless.activejdbc.query.PageQuery;
-import com.github.endless.activejdbc.query.PaginatorQuery;
+import com.github.endless.activejdbc.query.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.javalite.activejdbc.LazyList;
@@ -910,13 +908,10 @@ public abstract class ContextHelper {
 	@SneakyThrows
 	public static <T> void setField(T instance, Class<?> clazz, String fieldName, Object value) {
 		Field field = clazz.getDeclaredField(fieldName);
-		int modifiers = field.getModifiers();
-		if (Modifier.isStatic(modifiers) && Modifier.isFinal(modifiers)) {
-			Field modifiersField = Field.class.getDeclaredField("modifiers");
-			modifiersField.setAccessible(true);
-			modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-		}
-		field.setAccessible(true);
+		ReflectionUtils.makeAccessible(field);
+		Field modifiersField = Field.class.getDeclaredField("modifiers");
+		ReflectionUtils.makeAccessible(modifiersField);
+		modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
 		ReflectionUtils.setField(field, instance, value);
 	}
 
